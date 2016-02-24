@@ -20,39 +20,63 @@ y  = 20   # Abstand der Eingabeelemente von oben
 dy = 30   # vertikaler Abstand der Eingabeelemente
 
 
+def getCreateDate():
+    os.system('exiftool -CreateDate aktuell.jpg > CreateDate.txt')
+    datei = open('CreateDate.txt','r')
+    s = datei.read(100)
+    s = s.replace('Create Date                     :','')
+    s = s[:-1]
+    datei.close()
+    return s
+    
+
 def getLabelWidth(Label):
     return Label.fontMetrics().boundingRect(Label.text()).width()
 
    
 def showCreateDate():
-    os.system('exiftool -CreateDate aktuell.jpg > CreateDate.txt')
-    datei = open('CreateDate.txt','r')
-    s = datei.read(100)
-    s = s.replace('Create Date                     :','Create Date:')
-    datei.close()
-    lCreateDate.setText(s)
+    lCreateDate.setText('CreateDate: '+getCreateDate())
 
-    
-def showKeywords():
+
+def getKeywords():
     os.system('exiftool -mwg:keywords aktuell.jpg > keywords.txt')
     datei = open('keywords.txt','r')
     s = datei.read(100)
-    s = s.replace('Keywords                        :','Keywords:')
+    s = s.replace('Keywords                        : ','')
+    s = s[:-1]
     datei.close()
-    lKeywords.setText(s)
+    return s
+    
+    
+def showKeywords():
+    lKeywords.setText('Keywords: '+getKeywords())
 
 
 def on_Dia():
-    print('mache ein Foto!')
+    os.system('rm aktuell.jpg')
+    os.system('gphoto2 --capture-image-and-download --filename aktuell.jpg')
+    p = QPixmap('aktuell.jpg')
+    p = p.scaledToHeight(768)
+    PicLabel.setPixmap(p)
     showCreateDate()
     showKeywords()
-    	
+    print('mache ein Foto!')
+    
+       	
 bDia = QPushButton(mainwindow)
 bDia.setText('mache Foto')
 bDia.move(x,y)
 bDia.clicked.connect(on_Dia)
 
 def on_Invert():
+    s = getKeywords()
+    os.system('convert -negate -compress lossless aktuell.jpg aktuell.jpg')
+    os.system('exiftool -mwg:keywords="'+s+'" aktuell.jpg')
+    p = QPixmap('aktuell.jpg')
+    p = p.scaledToHeight(768)
+    PicLabel.setPixmap(p)
+    showCreateDate()
+    showKeywords()
     print('invertiere das Foto!')
     	
 bInvert = QPushButton(mainwindow)
@@ -61,10 +85,13 @@ bInvert.move(x,y+1*dy)
 bInvert.clicked.connect(on_Invert)
 
 def on_Mirror():
-    os.system('convert aktuell.jpg -flop aktuell.jpg')
+    os.system('jpegtran -flip horizontal -copy all aktuell.jpg > temp.jpg')
+    os.system('mv temp.jpg aktuell.jpg')
     p = QPixmap('aktuell.jpg')
     p = p.scaledToHeight(768)
     PicLabel.setPixmap(p)
+    showCreateDate()
+    showKeywords()
     print('spiegele das Foto!')
     	
 bMirror = QPushButton(mainwindow)
@@ -73,6 +100,13 @@ bMirror.move(x,y+2*dy)
 bMirror.clicked.connect(on_Mirror)
 
 def on_Turn():
+    os.system('jpegtran -rotate 90 -copy all aktuell.jpg > temp.jpg')
+    os.system('mv temp.jpg aktuell.jpg')
+    p = QPixmap('aktuell.jpg')
+    p = p.scaledToHeight(768)
+    PicLabel.setPixmap(p)
+    showCreateDate()
+    showKeywords()
     print('drehe das Foto!')
     	
 bTurn = QPushButton(mainwindow)
@@ -108,7 +142,13 @@ lTag.setText('Tag')
 lTag.move(x-getLabelWidth(lTag),y+6*dy+5)
 
 def on_TimeTag():
-    print('setze TimeTag!')
+    year = eJahr.text()
+    month = eMonat.text()
+    day = eTag.text()
+    hms = getCreateDate()[-9:]
+    os.system('exiftool -createdate="'+year+':'+month+':'+day+' '+hms+'" aktuell.jpg')
+    showCreateDate()
+    print('Setze Zeit! Jahr = '+year+', Monat = '+month+', Tag = '+day+', Zeit = '+hms)
     	
 bTimeTag = QPushButton(mainwindow)
 bTimeTag.setText('setze Zeit')
@@ -124,6 +164,8 @@ lKeywords.setText('Keywords')
 lKeywords.move(x-getLabelWidth(lKeywords),y+8*dy+5)
 
 def on_Keywords():
+    os.system('exiftool -mwg:keywords="'+eKeywords.text()+'" aktuell.jpg')
+    showKeywords()
     print('setze Keywords!')
     	
 bKeywords = QPushButton(mainwindow)
@@ -139,14 +181,27 @@ lName = QLabel(mainwindow)
 lName.setText('Name')
 lName.move(x-getLabelWidth(lName),y+10*dy+5)
 
+def on_Save():
+    os.system('cp aktuell.jpg '+eName.text()+'.jpg')
+    s = eName.text()[:-5]
+    n = int(eName.text()[-5:])
+    n = n+1
+    eName.setText(s+'{:0>5d}'.format(n))
+    print('speichere Bild!')
+
+bSave = QPushButton(mainwindow)
+bSave.setText('speichere')
+bSave.move(x,y+11*dy)
+bSave.clicked.connect(on_Save)
+
 lCreateDate = QLabel(mainwindow)
 lCreateDate.setFixedWidth(300)
-lCreateDate.setText('CreateDate: ?')
+lCreateDate.setText('CreateDate: '+getCreateDate())
 lCreateDate.move(10,778)
 
 lKeywords = QLabel(mainwindow)
 lKeywords.setFixedWidth(400)
-lKeywords.setText('Keywords: ?')
+lKeywords.setText('Keywords: '+getKeywords())
 lKeywords.move(320,778)
 
 mainwindow.show()
